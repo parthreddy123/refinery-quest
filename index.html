@@ -142,6 +142,14 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .badge-toast .bt{font-size:13px;font-weight:700;color:var(--gold)}
 .badge-toast .bd{font-size:11px;color:var(--dim)}
 
+/* PDF DOWNLOAD */
+.pdf-btn{display:inline-flex;align-items:center;gap:8px;padding:14px 28px;background:linear-gradient(135deg,var(--gold),var(--accent));color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(217,119,6,0.35);transition:all .25s;margin-top:16px;animation:pdfPulse 2s ease-in-out infinite}
+.pdf-btn:hover{transform:scale(1.04);filter:brightness(1.12)}
+@keyframes pdfPulse{0%,100%{box-shadow:0 4px 16px rgba(217,119,6,0.35)}50%{box-shadow:0 6px 24px rgba(217,119,6,0.55)}}
+.pdf-home-banner{text-align:center;background:linear-gradient(135deg,rgba(217,119,6,0.08),rgba(109,40,217,0.08));border:2px solid var(--gold);border-radius:16px;padding:24px;margin-top:20px}
+.pdf-home-banner h3{font-size:18px;font-weight:800;color:var(--gold);margin-bottom:6px}
+.pdf-home-banner p{font-size:13px;color:var(--dim);margin-bottom:14px}
+
 /* PASSWORD GATE */
 .gate{position:fixed;inset:0;z-index:999;background:var(--bg);display:flex;align-items:center;justify-content:center;transition:opacity .4s}
 .gate.hidden{opacity:0;pointer-events:none}
@@ -189,6 +197,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
       <div class="sun-info" id="sunInfo"></div>
     </div>
     <div class="ch-list" id="chList"></div>
+    <div id="pdfBanner"></div>
   </div>
 
   <div id="vCh" class="chview">
@@ -228,6 +237,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 
 <div class="badge-toast" id="toast"><div class="bi" id="tIco"></div><div><div class="bt" id="tName"></div><div class="bd" id="tDesc"></div></div></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
 <script src="data.js"></script>
 <script src="diagrams.js"></script>
 <script>
@@ -333,6 +343,10 @@ function renderList(){
     if(isNext&&!done)r.style.borderColor='var(--accent)';
     el.appendChild(r);
   });
+  const banner=document.getElementById('pdfBanner');
+  if(S.done.length>=chapters.length){
+    banner.innerHTML='<div class="pdf-home-banner"><h3>\u{1F393} Congratulations, Scholar!</h3><p>You have completed all '+chapters.length+' chapters. Download your reference summary.</p><button class="pdf-btn" onclick="generatePDF()">\u{1F4D6} Download Summary PDF</button></div>';
+  }else{banner.innerHTML=''}
 }
 
 // ===================== CHAPTER =====================
@@ -458,6 +472,10 @@ function showRes(){
   if(elapsed<30&&!S.bg.includes('speed')){S.bg.push('speed');setTimeout(()=>showToast('speed'),1000)}
   document.getElementById('tFill').style.width='100%';
   save();chkBadge();updBar();
+  if(S.done.length>=chapters.length){
+    const btns=document.querySelector('.result-btns');
+    if(!btns.querySelector('.pdf-btn')){const pb=document.createElement('button');pb.className='pdf-btn';pb.innerHTML='\u{1F4D6} Download Summary PDF';pb.onclick=generatePDF;btns.appendChild(pb)}
+  }
 }
 function retryQuiz(){startQuiz()}
 function nextCh(){
@@ -467,11 +485,85 @@ function nextCh(){
 
 document.addEventListener('keydown',e=>{if(e.key==='Escape')goHome()});
 
+// ===================== PDF SUMMARY =====================
+function generatePDF(){
+  if(typeof window.jspdf==='undefined'){alert('PDF library failed to load. Please check your internet connection and refresh.');return}
+  const{jsPDF}=window.jspdf;
+  const doc=new jsPDF('p','mm','a4');
+  const pw=210,ph=297,ml=20,mr=20,mt=25,mb=25,cw=pw-ml-mr;
+  let y=mt;
+  function checkPage(needed){if(y+needed>ph-mb){doc.addPage();y=mt;return true}return false}
+  function cleanHTML(s){return s.replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&#(\d+);/g,(m,c)=>String.fromCharCode(c))}
+
+  // Title page
+  doc.setFontSize(32);doc.setTextColor(109,40,217);
+  doc.text('Refinery Quest',pw/2,80,{align:'center'});
+  doc.setFontSize(16);doc.setTextColor(8,145,178);
+  doc.text('Complete Concept Summary',pw/2,95,{align:'center'});
+  doc.setFontSize(11);doc.setTextColor(120,120,120);
+  const totalConcepts=chapters.reduce((s,c)=>s+c.concepts.length,0);
+  doc.text('All '+chapters.length+' Chapters \u2022 '+totalConcepts+' Core Concepts',pw/2,110,{align:'center'});
+  doc.setFontSize(10);doc.setTextColor(160,160,160);
+  const dateStr=new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
+  doc.text('Generated: '+dateStr,pw/2,125,{align:'center'});
+  doc.setDrawColor(109,40,217);doc.setLineWidth(0.5);doc.line(60,132,150,132);
+  doc.setFontSize(10);doc.setTextColor(100,100,100);
+  const tagline=doc.splitTextToSize('Based on "Petroleum Refining in Nontechnical Language" by William L. Leffler. This reference summarizes every core concept covered across all 21 chapters.',120);
+  doc.text(tagline,pw/2,142,{align:'center'});
+
+  // Table of Contents
+  doc.addPage();y=mt;
+  doc.setFontSize(20);doc.setTextColor(109,40,217);doc.text('Table of Contents',ml,y);y+=12;
+  doc.setFontSize(10);
+  chapters.forEach(ch=>{
+    checkPage(7);
+    doc.setTextColor(109,40,217);doc.setFont(undefined,'bold');doc.text(ch.n+'.',ml,y);
+    doc.setTextColor(30,30,30);doc.text(ch.t,ml+12,y);
+    doc.setTextColor(160,160,160);doc.setFont(undefined,'normal');
+    doc.text(ch.concepts.length+' concepts',pw-mr,y,{align:'right'});
+    y+=7;
+  });
+
+  // Chapter content
+  chapters.forEach(ch=>{
+    doc.addPage();y=mt;
+    doc.setFontSize(10);doc.setTextColor(109,40,217);doc.setFont(undefined,'bold');
+    doc.text('CHAPTER '+ch.n,ml,y);y+=7;
+    doc.setFontSize(18);doc.setTextColor(30,30,30);doc.text(ch.t,ml,y);y+=6;
+    doc.setFontSize(10);doc.setTextColor(100,100,100);doc.setFont(undefined,'italic');
+    const descLines=doc.splitTextToSize(ch.d,cw);doc.text(descLines,ml,y);y+=descLines.length*5+4;
+    doc.setDrawColor(200,200,200);doc.setLineWidth(0.3);doc.line(ml,y,pw-mr,y);y+=8;
+    doc.setFont(undefined,'normal');
+
+    ch.concepts.forEach((c,ci)=>{
+      checkPage(30);
+      doc.setFontSize(12);doc.setTextColor(8,145,178);doc.setFont(undefined,'bold');
+      doc.text((ci+1)+'. '+cleanHTML(c.t),ml,y);y+=5;
+      doc.setFontSize(9);doc.setTextColor(109,40,217);doc.setFont(undefined,'italic');
+      const hookLines=doc.splitTextToSize(cleanHTML(c.h),cw);doc.text(hookLines,ml,y);y+=hookLines.length*4.5+2;
+      doc.setFontSize(10);doc.setTextColor(50,50,50);doc.setFont(undefined,'normal');
+      const bodyLines=doc.splitTextToSize(cleanHTML(c.b),cw);
+      bodyLines.forEach(line=>{checkPage(6);doc.text(line,ml,y);y+=5});
+      y+=6;
+    });
+  });
+
+  // Footers
+  const totalPages=doc.getNumberOfPages();
+  for(let i=2;i<=totalPages;i++){
+    doc.setPage(i);doc.setFontSize(8);doc.setTextColor(160,160,160);
+    doc.text('Refinery Quest \u2014 Concept Summary',ml,ph-10);
+    doc.text('Page '+(i-1)+' of '+(totalPages-1),pw-mr,ph-10,{align:'right'});
+  }
+
+  doc.save('Refinery_Quest_Summary.pdf');
+}
+
 // ===================== GATE =====================
 const _gk='rq_auth';
 function checkGate(){
   const pw=document.getElementById('gatePw').value;
-  if(pw==='refinery2026'){
+  if(pw==='reliance2026'){
     localStorage.setItem(_gk,'1');unlockApp();
   }else{
     document.getElementById('gateErr').textContent='Wrong password. Try again.';

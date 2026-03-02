@@ -140,13 +140,37 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .badge-toast .bt{font-size:13px;font-weight:700;color:var(--gold)}
 .badge-toast .bd{font-size:11px;color:var(--dim)}
 
+/* PASSWORD GATE */
+.gate{position:fixed;inset:0;z-index:999;background:var(--bg);display:flex;align-items:center;justify-content:center;transition:opacity .4s}
+.gate.hidden{opacity:0;pointer-events:none}
+.gate-box{text-align:center;max-width:360px;padding:40px 30px;background:var(--card);border:1px solid var(--border);border-radius:20px;box-shadow:var(--shadow-hover)}
+.gate-box h1{font-size:28px;font-weight:900;background:linear-gradient(135deg,var(--accent),var(--cyan),var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:6px}
+.gate-box p{color:var(--dim);font-size:13px;margin-bottom:24px;line-height:1.5}
+.gate-input{width:100%;padding:14px 18px;border:2px solid var(--border);border-radius:12px;font-size:15px;font-family:Inter,sans-serif;background:var(--code-bg);color:var(--text);outline:none;transition:border-color .2s;text-align:center;letter-spacing:2px}
+.gate-input:focus{border-color:var(--accent)}
+.gate-input.shake{animation:shake .4s}
+.gate-btn{margin-top:14px;width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;transition:all .2s;box-shadow:0 4px 12px rgba(109,40,217,0.3)}
+.gate-btn:hover{filter:brightness(1.1)}
+.gate-err{color:var(--red);font-size:12px;margin-top:10px;min-height:16px}
+@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+
 @media(max-width:500px){.home-title h1{font-size:28px}.wrap{padding:16px 12px 40px}.bar{padding:8px 12px}}
 ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
 </style>
 </head>
 <body>
 
-<div class="bar">
+<div class="gate" id="gate">
+  <div class="gate-box">
+    <h1>Refinery Quest</h1>
+    <p>Enter the team password to continue</p>
+    <input type="password" class="gate-input" id="gatePw" placeholder="Password" autocomplete="off" onkeydown="if(event.key==='Enter')checkGate()"/>
+    <button class="gate-btn" onclick="checkGate()">Enter</button>
+    <div class="gate-err" id="gateErr"></div>
+  </div>
+</div>
+
+<div class="bar" style="display:none" id="mainBar">
   <div class="logo" onclick="goHome()">RefineryQuest</div>
   <div class="pill lv">&#9733; Lvl <span id="sLv">1</span></div>
   <div class="xpw"><div class="xpf" id="sBar" style="width:0%"></div></div>
@@ -155,7 +179,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
   <button class="theme-btn" id="themeBtn" onclick="toggleTheme()" title="Toggle theme">&#9728;</button>
 </div>
 
-<div class="wrap">
+<div class="wrap" style="display:none" id="mainWrap">
   <div id="vHome">
     <div class="home-title">
       <h1>Refinery Quest</h1>
@@ -438,8 +462,30 @@ function nextCh(){
 
 document.addEventListener('keydown',e=>{if(e.key==='Escape')goHome()});
 
+// ===================== GATE =====================
+const _gk='rq_auth';
+function checkGate(){
+  const pw=document.getElementById('gatePw').value;
+  if(pw==='refinery2026'){
+    localStorage.setItem(_gk,'1');unlockApp();
+  }else{
+    document.getElementById('gateErr').textContent='Wrong password. Try again.';
+    const inp=document.getElementById('gatePw');
+    inp.classList.remove('shake');void inp.offsetWidth;inp.classList.add('shake');
+    inp.value='';inp.focus();
+  }
+}
+function unlockApp(){
+  document.getElementById('gate').classList.add('hidden');
+  document.getElementById('mainBar').style.display='';
+  document.getElementById('mainWrap').style.display='';
+  setTimeout(()=>{document.getElementById('gate').remove()},500);
+}
+
 // ===================== INIT =====================
-load();updBar();applyTheme();renderList();
+applyTheme();
+if(localStorage.getItem(_gk)==='1'){unlockApp();} else{document.getElementById('gatePw').focus();}
+load();updBar();renderList();
 setInterval(applyTheme,60000);
 </script>
 </body>

@@ -31,6 +31,8 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .bar{position:sticky;top:0;z-index:50;background:var(--topbar-bg);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:10px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;transition:background .4s}
 .bar .logo{font-size:18px;font-weight:900;background:linear-gradient(135deg,var(--accent),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;cursor:pointer}
 .pill{display:flex;align-items:center;gap:5px;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:5px 12px;font-size:12px;font-weight:700;box-shadow:var(--shadow);transition:all .3s}
+.pill.pulse{animation:pillPulse .5s ease}
+@keyframes pillPulse{0%{transform:scale(1)}40%{transform:scale(1.18);border-color:var(--cyan);box-shadow:0 0 12px rgba(8,145,178,.4)}100%{transform:scale(1)}}
 .pill.xp{color:var(--cyan)}.pill.lv{color:var(--accent)}.pill.str{color:var(--gold)}
 .xpw{flex:1;min-width:80px;max-width:180px;height:6px;background:var(--border);border-radius:6px;overflow:hidden}
 .xpf{height:100%;border-radius:6px;background:var(--xpbar);transition:width .5s}
@@ -275,11 +277,14 @@ function addXp(n,x,y){
   if(x!=null){const e=document.createElement('div');e.className='xp-fly';e.textContent='+'+n+' XP';e.style.left=x+'px';e.style.top=y+'px';document.body.appendChild(e);setTimeout(()=>e.remove(),1200)}
   chkBadge();
 }
+let _prevXp=-1;
 function updBar(){
   document.getElementById('sLv').textContent=S.lv;
-  document.getElementById('sXp').textContent=S.xp;
+  document.getElementById('sXp').textContent=S.totalXp;
   document.getElementById('sStr').textContent=S.str;
   document.getElementById('sBar').style.width=(S.xp/xpNeed(S.lv)*100)+'%';
+  if(_prevXp>=0&&S.totalXp>_prevXp){const p=document.querySelector('.pill.xp');p.classList.remove('pulse');void p.offsetWidth;p.classList.add('pulse')}
+  _prevXp=S.totalXp;
 }
 function lvlFlash(){const f=document.createElement('div');f.className='lvl-flash';document.body.appendChild(f);setTimeout(()=>f.remove(),800)}
 function confetti(){

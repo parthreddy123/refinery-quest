@@ -249,7 +249,11 @@ function getSGTime(){
 }
 function isDaytime(){const h=getSGTime().getHours();return h>=7&&h<19}
 
-let themeOverride=localStorage.getItem('rq_theme')||null;
+// Sync theme from main onboarding page
+let themeOverride=(function(){
+  try{const g=JSON.parse(localStorage.getItem('ril_onboarding_theme'));if(g&&g.override)return g.light?'light':'dark';}catch(e){}
+  return localStorage.getItem('rq_theme')||null;
+})();
 
 function applyTheme(){
   let dark;
@@ -265,11 +269,20 @@ function applyTheme(){
   if(info)info.textContent=`Singapore ${h}:${m} ${mode} \u2022 Sunrise 7AM / Sunset 7PM`;
 }
 
+function syncThemeToOnboarding(){
+  if(themeOverride){
+    localStorage.setItem('ril_onboarding_theme',JSON.stringify({override:true,light:themeOverride==='light'}));
+  } else {
+    localStorage.removeItem('ril_onboarding_theme');
+  }
+}
+
 function toggleTheme(){
   if(!themeOverride)themeOverride='dark';
   else if(themeOverride==='dark')themeOverride='light';
   else{themeOverride=null;localStorage.removeItem('rq_theme')}
   if(themeOverride)localStorage.setItem('rq_theme',themeOverride);
+  syncThemeToOnboarding();
   applyTheme();
 }
 
@@ -325,6 +338,7 @@ function showToast(id){
 
 // ===================== HOME =====================
 function goHome(){
+  history.replaceState(null,null,location.pathname);
   document.getElementById('vHome').style.display='block';
   document.getElementById('vCh').classList.remove('active');
   renderList();window.scrollTo(0,0);applyTheme();
@@ -344,14 +358,14 @@ function renderList(){
     el.appendChild(r);
   });
   const banner=document.getElementById('pdfBanner');
-  if(S.done.length>=chapters.length){
-    banner.innerHTML='<div class="pdf-home-banner"><h3>\u{1F393} Congratulations, Scholar!</h3><p>You have completed all '+chapters.length+' chapters. Download your reference summary.</p><button class="pdf-btn" onclick="generatePDF()">\u{1F4D6} Download Summary PDF</button></div>';
-  }else{banner.innerHTML=''}
+  const doneAll=S.done.length>=chapters.length;
+  banner.innerHTML='<div class="pdf-home-banner"><h3>'+(doneAll?'\u{1F393} Congratulations, Scholar!':'\u{1F4D6} Summary PDF')+'</h3><p>'+(doneAll?'You have completed all '+chapters.length+' chapters. Download your reference summary.':'Download the complete reference summary for all '+chapters.length+' chapters.')+'</p><button class="pdf-btn" onclick="generatePDF()">\u{1F4D6} Download Summary PDF</button></div>';
 }
 
 // ===================== CHAPTER =====================
 function openCh(id){
   cur=chapters.find(c=>c.id===id);if(!cur)return;
+  history.replaceState(null,null,'#'+id);
   document.getElementById('vHome').style.display='none';
   document.getElementById('vCh').classList.add('active');
   document.getElementById('cL').textContent='Chapter '+cur.n;
@@ -472,7 +486,7 @@ function showRes(){
   if(elapsed<30&&!S.bg.includes('speed')){S.bg.push('speed');setTimeout(()=>showToast('speed'),1000)}
   document.getElementById('tFill').style.width='100%';
   save();chkBadge();updBar();
-  if(S.done.length>=chapters.length){
+  {
     const btns=document.querySelector('.result-btns');
     if(!btns.querySelector('.pdf-btn')){const pb=document.createElement('button');pb.className='pdf-btn';pb.innerHTML='\u{1F4D6} Download Summary PDF';pb.onclick=generatePDF;btns.appendChild(pb)}
   }
@@ -583,7 +597,50 @@ function unlockApp(){
 applyTheme();
 if(localStorage.getItem(_gk)==='1'){unlockApp();} else{document.getElementById('gatePw').focus();}
 load();updBar();renderList();
+if(location.hash){const hid=parseInt(location.hash.slice(1));if(hid)setTimeout(()=>openCh(hid),100);}
+window.addEventListener('hashchange',()=>{const hid=parseInt(location.hash.slice(1));if(hid)openCh(hid);});
 setInterval(applyTheme,60000);
+
+/* __QUEST_DEV_UNLOCK_v1__ */
+// Escape hatch: ?dev=1 unlocks all progression; ?dev=reset clears localStorage;
+// typing "unlock" anywhere redirects to ?dev=1. Safe even if globals missing.
+(function(){
+  try {
+    const params = new URLSearchParams(location.search);
+    if (params.get('dev') === 'reset') { localStorage.clear(); location.href = location.pathname; return; }
+    if (params.get('dev') === '1') {
+      Object.keys(localStorage).forEach(k => { if (/auth|gate|pw/i.test(k)) localStorage.removeItem(k); });
+      setTimeout(function(){
+        try {
+          if (typeof S === 'object' && S) {
+            if (!S.done) S.done = [];
+            if (!S.bossesDefeated) S.bossesDefeated = [];
+            if (typeof chapters !== 'undefined' && Array.isArray(chapters)) {
+              chapters.filter(Boolean).forEach(c => {
+                if (c.boss || c.bossId) {
+                  const bid = c.bossId || ('boss_' + c.part);
+                  if (!S.bossesDefeated.includes(bid)) S.bossesDefeated.push(bid);
+                } else if (!c.side && c.id != null && !S.done.includes(c.id)) {
+                  S.done.push(c.id);
+                }
+              });
+            }
+            if (typeof save === 'function') save();
+            if (typeof renderHome === 'function') renderHome();
+            if (typeof updBar === 'function') updBar();
+          }
+          console.warn('DEV UNLOCK active.');
+        } catch(e) { console.warn('dev unlock partial:', e); }
+      }, 300);
+    }
+    let buf = '';
+    addEventListener('keydown', e => {
+      buf = (buf + (e.key || '')).slice(-6);
+      if (buf === 'unlock') location.href = location.pathname + '?dev=1';
+    });
+  } catch(e) { console.warn('dev unlock init failed:', e); }
+})();
+
 </script>
 </body>
 </html>
